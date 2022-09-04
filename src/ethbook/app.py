@@ -90,8 +90,8 @@ class BinanceOrderBook():
         print("Opening conection")
 
 def main() -> None:
-    binance_client: BinanceOrderBook = BinanceOrderBook()
-    binance_client.run()
+    client: BinanceOrderBook = BinanceOrderBook()
+    client.run()
 
 if __name__ == "__main__":
     main()

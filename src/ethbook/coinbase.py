@@ -14,19 +14,19 @@ import time
 from rich.live import Live
 from rich.table import Table
 
-# https://docs.ftx.com/#orderbooks
+# https://docs.cloud.coinbase.com/exchange/docs/websocket-overview
 
 #TODO Checksum to make sure that our state is correct
 #TODO Timestamp maybe
 
-class FtxOrderBook():
-    def __init__(self) -> FtxOrderBook:
+class CoinbaseOrderBook():
+    def __init__(self) -> CoinbaseOrderBook:
         self.bids = SortedDict()
         self.asks = SortedDict()
-        self.ws_url = f"wss://ftx.com/ws/"
+        self.ws_url = f"wss://ws-feed.exchange.coinbase.com"
         self.timestamp = None
 
-    def run(self) -> None:
+    def run(self) -> None:  
         ws = WebSocketApp(self.ws_url, on_message=self._wrap_callback(self._on_message), on_open=self._wrap_callback(self._on_open))
         self.live = Live(self._generate_table())
         self.live.start()
@@ -54,33 +54,35 @@ class FtxOrderBook():
         return wrapped_f
     
     def _update_orderbook(self, message) -> None:
-        for price_level, new_quantity in message["data"]['bids']:
-            price_level = float(price_level)
-            self.bids[price_level] = float(new_quantity)
-            if self.bids[price_level] == float(0):
-                    self.bids.pop(price_level)
-
-        for price_level, new_quantity in message["data"]['asks']:
-            price_level = float(price_level)
-            self.asks[price_level] = float(new_quantity)
-            if self.asks[price_level] == float(0):
-                self.asks.pop(price_level)
+        for side, price_level, new_quantity in message["changes"]:
+            
+            book_side = None
+            if side == "buy" :
+                book_side = self.bids
+            else:
+                book_side = self.asks
+            if float(new_quantity) == 0:
+                book_side.pop(price_level)
+                continue
+            book_side[float(price_level)] = float(new_quantity)
+          
         
     def _populate_orderbook(self, message) -> None:
-        for price_level, new_quantity in message["data"]['bids']:
+        for price_level, new_quantity in message['bids']:
             price_level = float(price_level)
             self.bids[price_level] = float(new_quantity)
             
-        for price_level, new_quantity in message["data"]['asks']: 
+        for price_level, new_quantity in message['asks']: 
             price_level = float(price_level)
             self.asks[price_level] = float(new_quantity)
             
     def _on_message(self, ws, message) -> None:  
+        # print(message)
         message = json.loads(message)
-        if message["type"] == "partial":
+        if message["type"] == "snapshot":
             self._populate_orderbook(message)
             
-        elif message["type"] == "update":
+        elif message["type"] == "l2update":
             self._update_orderbook(message)
         elif message["type"] == "subscribed":
             print("subscribe to goodalexhunting")
@@ -91,10 +93,15 @@ class FtxOrderBook():
         
     def _on_open(self, ws) -> None:
         print("opening connection")
-        ws.send(json.dumps({'op': 'subscribe', 'channel': 'orderbook', 'market': 'BTC/USDT'}))
+        ws.send(json.dumps({
+                                "type": "subscribe",
+                                "product_ids": [
+                                    "BTC-USDT"
+                                ],
+                                "channels": ["level2"]}))
 
 def main() -> None:
-    client: FtxOrderBook = FtxOrderBook()
+    client: CoinbaseOrderBook = CoinbaseOrderBook()
     client.run()
 
 if __name__ == "__main__":
