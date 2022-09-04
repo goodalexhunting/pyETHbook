@@ -5,7 +5,6 @@ import json
 import requests
 from sortedcontainers import SortedDict
 from tabulate import tabulate
-
 from rich.table import Table
 from textual import events
 from textual.app import App
@@ -24,13 +23,11 @@ class BinanceOrderBook():
         self.asks = SortedDict()
         self.last_update_id:int = None 
         self.orderbook_url = f"https://api.binance.com/api/v3/depth?symbol={pair.upper()}&limit={limit}"
-        self.ws_url = f"wss://stream.binance.com:9443/ws/{pair}@depth{limit}@{delay}"
+        self.ws_url = f"wss://stream.binance.com:9443/ws/{pair}@depth@{delay}"
+        self.previous_update_id = None
 
-    
     def run(self) -> None:
-    
         orderbook = requests.get(self.orderbook_url).json()
-        
         for price_level in orderbook["bids"]:
             self.bids[float(price_level[0])] = float(price_level[1])
         
@@ -40,8 +37,8 @@ class BinanceOrderBook():
         self.last_update_id = orderbook["lastUpdateId"]
         ws = WebSocketApp(self.ws_url, on_message=self._wrap_callback(self._on_message), on_open=self._wrap_callback(self._on_message))
         
-        #self.live = Live(self._generate_table())
-        #self.live.start()
+        self.live = Live(self._generate_table())
+        self.live.start()
         ws.run_forever()
 
 
@@ -51,11 +48,10 @@ class BinanceOrderBook():
         table.add_column("Quantity")
         table.add_column("Price")
         table.add_column("Quantity")
-        # for (bid_level, ask_level) in zip(reversed(self.bids.items()[:]), self.asks.items()[:]): 
-        #     table.add_row(
-        #     f"[green]{bid_level[0]}", f"[green]{bid_level[1]}",f"[red]{ask_level[0]}",f"[red]{ask_level[1]}"
-        # )
-
+        for (bid_level, ask_level) in zip(reversed(self.bids.items()[:]), self.asks.items()[:]): 
+            table.add_row(
+            f"[green]{bid_level[0]}", f"[green]{bid_level[1]}",f"[red]{ask_level[0]}",f"[red]{ask_level[1]}"
+            )
         return table
     
     def _wrap_callback(self,f):
@@ -68,52 +64,34 @@ class BinanceOrderBook():
 
 
     def _on_message(self, ws, message) -> None:
-        # print("received new message")
         message = json.loads(message)
-
-        if message['lastUpdateId'] < self.last_update_id:
-            print(f"{message['lastUpdateId']=} {self.last_update_id=}")
+        
+        if message['u'] <= self.last_update_id:
+            print(f"{message['u']=} {self.last_update_id=}")
             return
 
-        for price_level, new_quantity in message['bids']:
+        for price_level, new_quantity in message['b']:
             price_level = float(price_level)
-            if float(price_level) == self.bids.keys()[-1]:
-                print(f"[BID] Setting {price_level=} to {new_quantity=}")
             self.bids[price_level] = float(new_quantity)
             if self.bids[price_level] == float(0):
                 self.bids.pop(price_level)
 
-        for price_level, new_quantity in message['asks']:
-            
-            if float(price_level) == self.asks.keys()[0]:
-                print(f"[ASK] Setting {price_level=} to {new_quantity=}")
-
+        for price_level, new_quantity in message['a']: 
             price_level = float(price_level)
             self.asks[price_level] = float(new_quantity)
             if self.asks[price_level] == float(0):
                 self.asks.pop(price_level)
         
-        
-        self.last_update_id = message['lastUpdateId']
-        print("new message")
-        print(f"Best bid: {self.bids.keys()[-1]}:{self.bids.values()[-1]}, Best Ask: {self.asks.keys()[0]}:{self.asks.values()[0]}")
-        # self.live.update(self._generate_table())
-        
+        self.previous_update_id = message['u']
+        self.live.update(self._generate_table())
+        print(f"{len(self.asks)=}")
 
     def _on_open(self, ws, message) -> None:
         print("Opening conection")
 
-
-    
-
-
-    
-
-
 def main() -> None:
     binance_client: BinanceOrderBook = BinanceOrderBook()
     binance_client.run()
-
 
 if __name__ == "__main__":
     main()
@@ -125,7 +103,6 @@ if __name__ == "__main__":
 #4) 
 
 # "https://api.binance.com/api/v3/depth/exchangeInfo?symbol=BNBBTC"
-
 # {
 #   "e": "depthUpdate", // Event type
 #   "E": 123456789,     // Event time
