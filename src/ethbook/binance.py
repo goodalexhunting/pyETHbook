@@ -1,5 +1,6 @@
 from __future__ import annotations
 from threading import Thread
+from ethbook.order_book import OrderBook
 from websocket import WebSocketApp, enableTrace
 import json
 import requests
@@ -13,78 +14,55 @@ import random
 import time
 from rich.live import Live
 from rich.table import Table
+import rel
 # https://binance-docs.github.io/apidocs/spot/en/#live-subscribing-unsubscribing-to-streams
 
 
-class BinanceOrderBook():
-    
-    def __init__(self, limit = 20, delay = '100ms', pair = "btcusdt") -> BinanceOrderBook:
-        self.bids = SortedDict()
-        self.asks = SortedDict()
+class BinanceOrderBook(OrderBook):
+    def __init__(self, bids: SortedDict, asks: SortedDict, live: Live) -> BinanceOrderBook:
+        super().__init__(bids, asks, live)
+        self.name = "Binance"
         self.last_update_id:int = None 
-        self.orderbook_url = f"https://api.binance.com/api/v3/depth?symbol={pair.upper()}&limit={limit}"
-        self.ws_url = f"wss://stream.binance.com:9443/ws/{pair}@depth@{delay}"
+        self.orderbook_url = f"https://api.binance.com/api/v3/depth?symbol=BTCUSDT&limit=1000"
+        self.ws_url = f"wss://stream.binance.com:9443/ws/btcusdt@depth@100ms"
         self.previous_update_id = None
+        self.exchange_colour = "#F3BA2F"
 
     def run(self) -> None:
+        print("running binance orderbook")
         orderbook = requests.get(self.orderbook_url).json()
         for price_level in orderbook["bids"]:
-            self.bids[float(price_level[0])] = float(price_level[1])
+            self.bids[float(price_level[0])] = (float(price_level[1]), self.name)
         
         for price_level in orderbook["asks"]:
-            self.asks[float(price_level[0])] = float(price_level[1])
-        print(f"Best bid: {self.bids.keys()[-1]}:{self.bids.values()[-1]}, Best Ask: {self.asks.keys()[0]}:{self.asks.values()[0]}")
+            self.asks[float(price_level[0])] = (float(price_level[1]), self.name)
         self.last_update_id = orderbook["lastUpdateId"]
         ws = WebSocketApp(self.ws_url, on_message=self._wrap_callback(self._on_message), on_open=self._wrap_callback(self._on_message))
         
-        self.live = Live(self._generate_table())
-        self.live.start()
-        ws.run_forever()
-
-
-    def _generate_table(self) -> Table:
-        table = Table()
-        table.add_column("Price")
-        table.add_column("Quantity")
-        table.add_column("Price")
-        table.add_column("Quantity")
-        for (bid_level, ask_level) in zip(reversed(self.bids.items()[:]), self.asks.items()[:]): 
-            table.add_row(
-            f"[green]{bid_level[0]}", f"[green]{bid_level[1]}",f"[red]{ask_level[0]}",f"[red]{ask_level[1]}"
-            )
-        return table
-    
-    def _wrap_callback(self,f):
-        def wrapped_f(ws, *args, **kwargs):
-            try:
-                f(ws, *args, **kwargs)
-            except Exception as e:
-                raise Exception(f"Error running websocket callback: {e}")
-        return wrapped_f
-
-
-    def _on_message(self, ws, message) -> None:
-        message = json.loads(message)
+        ws.run_forever(dispatcher=rel)
         
+
+    def _on_message(self, ws: WebSocketApp, message) -> None:
+        message = json.loads(message)
+        # print("received message")
         if message['u'] <= self.last_update_id:
-            print(f"{message['u']=} {self.last_update_id=}")
+            # print(f"{message['u']=} {self.last_update_id=}")
             return
 
         for price_level, new_quantity in message['b']:
             price_level = float(price_level)
-            self.bids[price_level] = float(new_quantity)
-            if self.bids[price_level] == float(0):
+            self.bids[price_level] = (float(new_quantity),self.name)
+            if self.bids[price_level][0] == float(0):
                 self.bids.pop(price_level)
 
         for price_level, new_quantity in message['a']: 
             price_level = float(price_level)
-            self.asks[price_level] = float(new_quantity)
-            if self.asks[price_level] == float(0):
+            self.asks[price_level] = (float(new_quantity), self.name)
+            if self.asks[price_level][0] == float(0):
                 self.asks.pop(price_level)
         
         self.previous_update_id = message['u']
         self.live.update(self._generate_table())
-        print(f"{len(self.asks)=}")
 
     def _on_open(self, ws, message) -> None:
         print("Opening conection")
