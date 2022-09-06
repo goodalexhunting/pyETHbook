@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from ethbook.colours import EXCHANGE_COLOURS
 from rich.live import Live
 from rich.table import Table
 from sortedcontainers import SortedDict
@@ -9,7 +10,6 @@ class OrderBook(ABC):
         self.bids = bids
         self.asks = asks
         self.live = live
-
     @abstractmethod
     def run(self) -> None:
         pass
@@ -31,9 +31,12 @@ class OrderBook(ABC):
         table.add_column("Quantity")
         table.add_column("Exchange")
         for ((bid_price, bid_level), (ask_price, ask_level)) in zip(reversed(self.bids.items()[:]), self.asks.items()[:]): 
-            
-            bid_exchanges = " ".join(bid_level.quantities.keys())
-            ask_exchanges = " ".join(ask_level.quantities.keys())
+            bid_exchanges = ""
+            for exchange in bid_level.quantities.keys():
+                bid_exchanges += f"[{EXCHANGE_COLOURS[exchange]}]{exchange} "
+            ask_exchanges = ""
+            for exchange in ask_level.quantities.keys():
+                ask_exchanges += f"[{EXCHANGE_COLOURS[exchange]}]{exchange} "
             table.add_row(
             f"[green]{bid_price}", f"[green]{bid_level.total_quantity}",f"{bid_exchanges}",
             f"[red]{ask_price}",f"[red]{ask_level.total_quantity}", f"{ask_exchanges}"

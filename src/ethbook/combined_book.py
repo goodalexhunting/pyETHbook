@@ -13,9 +13,10 @@ class CombinedBook():
         self.asks = SortedDict()
         self.live = Live()
         orderbooks = [BinanceOrderBook, CoinbaseOrderBook, KrakenOrderBook, FtxOrderBook]
+        # orderbooks = [FtxOrderBook]
         # orderbooks = [CoinbaseOrderBook]
         self.orderbooks = list(map(lambda cls: cls(self.bids, self.asks, self.live), orderbooks))
-
+        
     def run(self) -> None:
         self.live.start()
         for orderbook in self.orderbooks:
