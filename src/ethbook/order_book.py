@@ -24,12 +24,10 @@ class OrderBook(ABC):
         
     def _generate_table(self) -> Table:
         table = Table()
-        table.add_column("Price")
-        table.add_column("Quantity")
-        table.add_column("Exchange")
-        table.add_column("Price")
-        table.add_column("Quantity")
-        table.add_column("Exchange")
+        columns = ["Price", "Quantity", "Exchange"]
+        for col in columns * 2:
+            table.add_column(col)
+            
         for ((bid_price, bid_level), (ask_price, ask_level)) in zip(reversed(self.bids.items()[:]), self.asks.items()[:]): 
             bid_exchanges = ""
             for exchange in bid_level.quantities.keys():
