@@ -1,66 +1,53 @@
 from __future__ import annotations
-from threading import Thread
 from ethbook.order_book import OrderBook
-from websocket import WebSocketApp, enableTrace, create_connection
+from websocket import WebSocketApp
 import json
-import requests
 from sortedcontainers import SortedDict
-from tabulate import tabulate
-from rich.table import Table
-from textual import events
-from textual.app import App
-from textual.widgets import ScrollView
-import random
-import time
+from constants import PAIR1, PAIR2
+from limit_level import LimitLevel 
 from rich.live import Live
-from rich.table import Table
 
 # https://docs.cloud.coinbase.com/exchange/docs/websocket-overview
-
 #TODO Checksum to make sure that our state is correct
 #TODO Timestamp maybe
-
 class KrakenOrderBook(OrderBook):
-    def __init__(self, combined_bids: SortedDict, combined_asks: SortedDict, live: Live) -> KrakenOrderBook:
-        super().__init__(combined_bids, combined_asks, live)
-        self.name = "Kraken"
-        self.ws_url = f"wss://ws.kraken.com"
+    _WS_URL = f"wss://ws.kraken.com"
+    _COLOUR = "#4c00b0"
+    _NAME = 'Kraken'
+    
+    def __init__(self, bids: SortedDict, asks: SortedDict, live: Live) -> KrakenOrderBook:
+        super().__init__(bids, asks, live)
         self.timestamp = None
-        self.exchange_colour = "#4c00b0"
 
     def run(self) -> None:  
-        ws = WebSocketApp(self.ws_url, on_message=self._wrap_callback(self._on_message), on_open=self._wrap_callback(self._on_open))
-        self.live = Live(self._generate_table())
-        self.live.start()
+        ws = WebSocketApp(self._WS_URL, on_message=self._wrap_callback(self._on_message), on_open=self._wrap_callback(self._on_open))
         ws.run_forever()
 
     def _update_orderbook(self, message) -> None:
         try:
-            for price_level, new_quantity, *_ in message['b']:
-                price_level = float(price_level)
-                self.bids[price_level] = (float(new_quantity), self.name)
-                if self.bids[price_level] == float(0):
-                        self.bids.pop(price_level)
+            self.process_orderbook_event(message["b"], self.bids)
         except KeyError:
             pass
         try:
-            for price_level, new_quantity, *_ in message['a']:
-                price_level = float(price_level)
-                self.asks[price_level] = (float(new_quantity), self.name)
-                if self.asks[price_level] == float(0):
-                    self.asks.pop(price_level)
+            self.process_orderbook_event(message["a"], self.asks)
         except KeyError:
             pass
-
+    
+    def process_orderbook_event(self, orderbook_data: dict[str, list[str]], book_side: SortedDict) -> None:
+        for price_level, new_quantity, *_ in orderbook_data:
+            price_level, new_quantity = float(price_level), float(new_quantity)
+            try:
+                book_side[price_level].update_quantity(self._NAME, new_quantity)
+            except KeyError:
+                book_side[price_level] = LimitLevel()
+                book_side[price_level].update_quantity(self._NAME, new_quantity)
+            if -0.000000000001 < book_side[price_level].total_quantity < 0.000000000001:
+                book_side.pop(price_level)
+        
     def _populate_orderbook(self, message) -> None:
-        for price_level, new_quantity, _ in message['bs']:
-            price_level = float(price_level)
-            self.bids[price_level] = (float(new_quantity), self.name)
-            
-        for price_level, new_quantity, _ in message['as']: 
-            price_level = float(price_level)
-            self.asks[price_level] = (float(new_quantity), self.name)
-            
+            self.process_orderbook_event(message['bs'], self.bids)
+            self.process_orderbook_event(message['as'], self.asks)
+
     def _on_message(self, ws, message) -> None:  
         message = json.loads(message)
         if type(message) == list:
@@ -77,7 +64,7 @@ class KrakenOrderBook(OrderBook):
         ws.send(json.dumps({
         "event": "subscribe",
         "pair": [
-            "BTC/USDT"],
+            f"{PAIR1}/{PAIR2}"],
         "subscription": {
             "name": "book"}
             }))
