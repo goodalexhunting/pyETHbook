@@ -26,7 +26,7 @@ class CombinedBook():
         self.asks = SortedDict()
         self.live = Live()
         # orderbooks = [BinanceOrderBook, FtxOrderBook, CoinbaseOrderBook, KrakenOrderBook]
-        orderbooks = [FtxOrderBook]
+        orderbooks = [BinanceOrderBook]
         self.orderbooks = list(map(lambda cls: cls(self.bids, self.asks, self.live), orderbooks))
 
 

@@ -21,8 +21,8 @@ from rich.table import Table
 #TODO Timestamp maybe
 
 class FtxOrderBook(OrderBook):
-    def __init__(self, bids: SortedDict, asks: SortedDict, live) -> FtxOrderBook:
-        super().__init__(bids, asks, live)
+    def __init__(self, combined_bids: SortedDict, combined_asks: SortedDict, live: Live) -> FtxOrderBook:
+        super().__init__(combined_bids, combined_asks, live)
         self.name = "FTX"
         self.ws_url = f"wss://ftx.com/ws/"
         self.timestamp = None

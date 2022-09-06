@@ -15,6 +15,7 @@ import time
 from rich.live import Live
 from rich.table import Table
 import rel
+from limit_level import LimitLevel
 # https://binance-docs.github.io/apidocs/spot/en/#live-subscribing-unsubscribing-to-streams
 
 
@@ -22,48 +23,50 @@ class BinanceOrderBook(OrderBook):
     def __init__(self, bids: SortedDict, asks: SortedDict, live: Live) -> BinanceOrderBook:
         super().__init__(bids, asks, live)
         self.name = "Binance"
-        self.last_update_id:int = None 
-        self.orderbook_url = f"https://api.binance.com/api/v3/depth?symbol=BTCUSDT&limit=1000"
-        self.ws_url = f"wss://stream.binance.com:9443/ws/btcusdt@depth@100ms"
-        self.previous_update_id = None
+        self.last_update_id = None 
+        self.orderbook_url = f"https://api.binance.com/api/v3/depth?symbol=ETHUSDT&limit=1000"
+        self.ws_url = f"wss://stream.binance.com:9443/ws/ethusdt@depth"
+        self.previous_update_id = 0
         self.exchange_colour = "#F3BA2F"
-
+        
     def run(self) -> None:
         print("running binance orderbook")
         orderbook = requests.get(self.orderbook_url).json()
-        for price_level in orderbook["bids"]:
-            self.bids[float(price_level[0])] = (float(price_level[1]), self.name)
         
-        for price_level in orderbook["asks"]:
-            self.asks[float(price_level[0])] = (float(price_level[1]), self.name)
+        self.process_orderbook_event(orderbook["bids"], self.bids)
+        self.process_orderbook_event(orderbook["asks"], self.asks)
+ 
+
         self.last_update_id = orderbook["lastUpdateId"]
         ws = WebSocketApp(self.ws_url, on_message=self._wrap_callback(self._on_message), on_open=self._wrap_callback(self._on_message))
-        
         ws.run_forever(dispatcher=rel)
-        
+    
+    def process_orderbook_event(self, orderbook_data: list[list[str]], side: SortedDict[float, LimitLevel]) -> None:
+        for price, quantity in orderbook_data:
+            price = float(price)
+            quantity = float(quantity)
+            try:
+                side[price].update_quantity(self.name, quantity)
+            except KeyError:
+                side[price] = LimitLevel()
+                side[price].update_quantity(self.name, quantity)
+            if -0.000000000001 < side[price].total_quantity < 0.000000000001:
+                side.pop(price)
+
 
     def _on_message(self, ws: WebSocketApp, message) -> None:
         message = json.loads(message)
-        # print("received message")
-        if message['u'] <= self.last_update_id:
-            # print(f"{message['u']=} {self.last_update_id=}")
+        #print("received message")
+        if int(message['u']) <= self.last_update_id:
             return
-
-        for price_level, new_quantity in message['b']:
-            price_level = float(price_level)
-            self.bids[price_level] = (float(new_quantity),self.name)
-            if self.bids[price_level][0] == float(0):
-                self.bids.pop(price_level)
-
-        for price_level, new_quantity in message['a']: 
-            price_level = float(price_level)
-            self.asks[price_level] = (float(new_quantity), self.name)
-            if self.asks[price_level][0] == float(0):
-                self.asks.pop(price_level)
+        self.process_orderbook_event(message['b'], self.bids)
+        self.process_orderbook_event(message['a'], self.asks)
         
-        self.previous_update_id = message['u']
         self.live.update(self._generate_table())
-
+        # print(F"BEST TEMP BID: {max(self.temp_bids.keys())} QTY: {self.temp_bids[max(self.temp_bids.keys())]}  BEST TEMP ASK: {min(self.temp_asks.keys())} QTY: {self.temp_asks[min(self.temp_asks.keys())]}")
+        # print(F"BEST BID: {max(self.bids.keys())} QTY: {self.bids[max(self.bids.keys())].total_quantity} BEST ASK: {min(self.asks.keys())} QTY: {self.asks[min(self.asks.keys())].total_quantity}")
+        self.previous_update_id = int(message['u'])
+    
     def _on_open(self, ws, message) -> None:
         print("Opening conection")
 
@@ -74,11 +77,6 @@ def main() -> None:
 if __name__ == "__main__":
     main()
 
-#TODO
-#1) get current state of orderbook, and store it in two sorted containers
-#2) listen to stream
-#3) for each depthUpdate, update orderbook
-#4) 
 
 # "https://api.binance.com/api/v3/depth/exchangeInfo?symbol=BNBBTC"
 # {
