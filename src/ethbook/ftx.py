@@ -21,6 +21,7 @@ class FtxOrderBook(OrderBook):
     def __init__(self, combined_bids: SortedDict, combined_asks: SortedDict, live: Live) -> FtxOrderBook:
         super().__init__(combined_bids, combined_asks, live)
         self.timestamp = None
+        self.name = "ftx"
 
     def run(self) -> None:
         ws = WebSocketApp(self._WS_URL, on_message=self._wrap_callback(self._on_message), on_open=self._wrap_callback(self._on_open))
@@ -48,8 +49,8 @@ class FtxOrderBook(OrderBook):
             return
         else: 
             return
-        self.live.update(self._generate_table())
-        
+        #self.live.update(self._generate_collapsed_table())
+        self.group_by_price(self.bids)
     def _on_open(self, ws) -> None:
         print("opening connection")
         ws.send(json.dumps({'op': 'subscribe', 'channel': 'orderbook', 'market': f'{PAIR1}/{PAIR2}'}))

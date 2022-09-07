@@ -17,6 +17,7 @@ class KrakenOrderBook(OrderBook):
     
     def __init__(self, bids: SortedDict, asks: SortedDict, live: Live) -> KrakenOrderBook:
         super().__init__(bids, asks, live)
+        self.name = "kraken"
         self.timestamp = None
 
     def run(self) -> None:  
@@ -50,6 +51,7 @@ class KrakenOrderBook(OrderBook):
 
     def _on_message(self, ws, message) -> None:  
         message = json.loads(message)
+        print("received message from kraken")
         if type(message) == list:
             try:
                 message[1]['bs']
@@ -57,8 +59,9 @@ class KrakenOrderBook(OrderBook):
             except KeyError:
                 self._update_orderbook(message[1])
 
-        self.live.update(self._generate_table())
-        
+        #self.live.update(self._generate_collapsed_table())
+        self.group_by_price(self.bids)
+        #self.group_by_price(self.ask)
     def _on_open(self, ws) -> None:
         print("opening connection")
         ws.send(json.dumps({

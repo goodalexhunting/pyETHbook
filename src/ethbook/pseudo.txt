@@ -1,0 +1,29 @@
+{
+    145.1: totalqty=13
+    145.2: totalqty=14
+}
+
+{
+    145: 12
+}
+// if we want to group by dollar
+lambda x, y: int(x.price) == int(y.price)
+
+
+// if we want o group by 10 dollars:
+
+lambda x, y: int(x.price) // 10 == int(y.price) // 10
+    
+    1.01
+    1.02
+
+    2.02
+    2.03
+    int(x.price / 0.1)
+
+groupby(ke)
+
+
+some_list = list(map(lambda x: (x[0], x[1].total_quantity), asks.items()[:]))
+grouped_list = list(groupby(lambda x: int(x[0]), some_list))
+map(lambda x: (int(x[0]),sum(x[1])), grouped_list)
