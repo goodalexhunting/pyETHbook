@@ -6,7 +6,7 @@ from sortedcontainers import SortedDict
 from constants import PAIR1, PAIR2
 from limit_level import LimitLevel 
 from rich.live import Live
-
+import multiprocessing as mp
 # https://docs.cloud.coinbase.com/exchange/docs/websocket-overview
 #TODO Checksum to make sure that our state is correct
 #TODO Timestamp maybe
@@ -58,9 +58,9 @@ class KrakenOrderBook(OrderBook):
                 self._populate_orderbook(message[1])
             except KeyError:
                 self._update_orderbook(message[1])
-
-        #self.live.update(self._generate_collapsed_table())
-        self.group_by_price(self.bids)
+        print(self._NAME)
+        # self.live.update(self._generate_table())
+        #self.group_by_price(self.bids)
         #self.group_by_price(self.ask)
     def _on_open(self, ws) -> None:
         print("opening connection")

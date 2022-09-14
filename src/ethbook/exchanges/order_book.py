@@ -7,13 +7,15 @@ from limit_level import LimitLevel
 from typing import Iterable
 from itertools import groupby
 from functools import reduce
-
+from typing import Tuple
+import multiprocessing as mp
+from dataclasses import dataclass, field
+from typing import TypeAlias
 class OrderBook(ABC):
-    def __init__(self, bids: SortedDict, asks: SortedDict, live: Live) -> None:
-        self.bids = bids
-        self.asks = asks
-        self.live = live
-        self.name = None
+    def __init__(self, queue: mp.Queue, name: str) -> None:
+        self.event_queue = queue
+        self.name = name
+    
     @abstractmethod
     def run(self) -> None:
         pass
@@ -46,10 +48,9 @@ class OrderBook(ABC):
             
         return table
     
-    def group_by_price(self, side: SortedDict[float, LimitLevel]) -> Iterable[tuple[int, float, str]]:
+    def group_by_price(self, side):
         print(self.name)
         return
-        
         return_side = list(map(lambda x: (x[0], x[1].total_quantity, set(x[1].quantities.keys())), side.items()))
         print(return_side)
         grouped_side = map(lambda x: (x[0], list(x[1])),groupby(return_side, lambda x: int(x[0])))
@@ -73,4 +74,12 @@ class OrderBook(ABC):
             f"[red]{ask_price}",f"[red]{ask_quantity}", f"{ask_exchanges}"
             )
         return table
-    
+
+
+PriceUpdate: TypeAlias = tuple[float, float]
+
+@dataclass(frozen=True, slots=True)
+class OrderbookEvent:
+    exchange_name: str
+    asks: list[PriceUpdate] = field(default_factory=list)
+    bids: list[PriceUpdate] = field(default_factory=list)

@@ -9,6 +9,7 @@ from rich.live import Live
 import rel
 from limit_level import LimitLevel
 from constants import PAIR1, PAIR2
+import multiprocessing as mp
 # https://binance-docs.github.io/apidocs/spot/en/#live-subscribing-unsubscribing-to-streams
 
 class BinanceOrderBook(OrderBook):
@@ -53,8 +54,9 @@ class BinanceOrderBook(OrderBook):
             return
         self.process_orderbook_event(message['b'], self.bids)
         self.process_orderbook_event(message['a'], self.asks)
+        print(self._NAME)
 
-        self.live.update(self._generate_table())
+        # self.live.update(self._generate_table())
         # print(F"BEST TEMP BID: {max(self.temp_bids.keys())} QTY: {self.temp_bids[max(self.temp_bids.keys())]}  BEST TEMP ASK: {min(self.temp_asks.keys())} QTY: {self.temp_asks[min(self.temp_asks.keys())]}")
         # print(F"BEST BID: {max(self.bids.keys())} QTY: {self.bids[max(self.bids.keys())].total_quantity} BEST ASK: {min(self.asks.keys())} QTY: {self.asks[min(self.asks.keys())].total_quantity}")
         self.previous_update_id = int(message['u'])

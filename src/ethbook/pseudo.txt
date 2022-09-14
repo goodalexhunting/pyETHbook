@@ -1,29 +1,54 @@
-{
-    145.1: totalqty=13
-    145.2: totalqty=14
-}
-
-{
-    145: 12
-}
-// if we want to group by dollar
-lambda x, y: int(x.price) == int(y.price)
+import multiprocessing as mp
 
 
-// if we want o group by 10 dollars:
 
-lambda x, y: int(x.price) // 10 == int(y.price) // 10
+
+
+
+
+
+MESSAGE FORMAT:
+(EXCHANGE_NAME, PRICE_LEVEL, NEW_QTY) 
+(EXCHANGE_NAME, asks[[PRICE_LEVEL,NEW_QTY]], bids[[PRICE_LEVEL,NEW_QTY]]) 
+
+
+
+@dataclass(frozen=True, slots=True)
+class OrderbookEvent:
+    exhchange_name: str
+    asks: list[list[float]] | None = None
+    bids: list[list[float]] | None = None
+
+
+class CombinedBook():
+for cls in exhanges.globals()
+    def __init__(self) -> None:
+        self.asks = SortedDict()
+        self.bids = SortedDict()
+        self.live = Live()
+        self.exchanges = [BinanceOrderBook, CoinbaseOrderBook, KrakenOrderBook, FtxOrderBook]
+        self.messaging_queue = mp.Queue()
+        self.exchanges = [cls(self.messagin_queue) for cls in exchanges]
+
+    def _generate_table(self) -> Table
+        //
     
-    1.01
-    1.02
+    def _process_message(self, message:OrderbookEvent) -> None:
+        for price, qty in message.bids:
+            self.bids[price].update_quantity(message.exhange_name, quantity)
+        for price, qty in message.asks:
+            self.asks[price].update_quantity(message.exhange_name, quantity)
 
-    2.02
-    2.03
-    int(x.price / 0.1)
-
-groupby(ke)
-
-
-some_list = list(map(lambda x: (x[0], x[1].total_quantity), asks.items()[:]))
-grouped_list = list(groupby(lambda x: int(x[0]), some_list))
-map(lambda x: (int(x[0]),sum(x[1])), grouped_list)
+    def run() -> None:
+        for exchange in exchanges:
+            exchanges.run()
+        
+        while True:
+            message = self.message_queue.get()
+            if message is None:
+                continue
+            else:
+                self._process_message(message)
+                self.generate_table()
+    
+    
