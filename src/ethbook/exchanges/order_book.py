@@ -11,72 +11,107 @@ from typing import Tuple
 import multiprocessing as mp
 from dataclasses import dataclass, field
 from typing import TypeAlias
+
+
 class OrderBook(ABC):
     def __init__(self, queue: mp.Queue, name: str) -> None:
         self.event_queue = queue
         self.name = name
-    
+
     @abstractmethod
     def run(self) -> None:
         pass
-    
-    def _wrap_callback(self,f):
+
+    def _wrap_callback(self, f):
         def wrapped_f(ws, *args, **kwargs):
             try:
                 f(ws, *args, **kwargs)
             except Exception as e:
-                raise Exception(f"Error running websocket callback: {e}")
+                raise Exception(f'Error running websocket callback: {e}')
+
         return wrapped_f
-    
+
     def _generate_table(self) -> Table:
         table = Table()
-        columns = ["Price", "Quantity", "Exchange"]
+        columns = ['Price', 'Quantity', 'Exchange']
         for col in columns * 2:
             table.add_column(col)
-            
-        for ((bid_price, bid_level), (ask_price, ask_level)) in zip(reversed(self.bids.items()[:]), self.asks.items()[:]): 
-            bid_exchanges = ""
+
+        for ((bid_price, bid_level), (ask_price, ask_level)) in zip(
+            reversed(self.bids.items()[:]), self.asks.items()[:]
+        ):
+            bid_exchanges = ''
             for exchange in bid_level.quantities.keys():
-                bid_exchanges += f"[{EXCHANGE_COLOURS[exchange]}]{exchange} "
-            ask_exchanges = ""
+                bid_exchanges += f'[{EXCHANGE_COLOURS[exchange]}]{exchange} '
+            ask_exchanges = ''
             for exchange in ask_level.quantities.keys():
-                ask_exchanges += f"[{EXCHANGE_COLOURS[exchange]}]{exchange} "
+                ask_exchanges += f'[{EXCHANGE_COLOURS[exchange]}]{exchange} '
             table.add_row(
-            f"[green]{bid_price}", f"[green]{bid_level.total_quantity}",f"{bid_exchanges}",
-            f"[red]{ask_price}",f"[red]{ask_level.total_quantity}", f"{ask_exchanges}"
+                f'[green]{bid_price}',
+                f'[green]{bid_level.total_quantity}',
+                f'{bid_exchanges}',
+                f'[red]{ask_price}',
+                f'[red]{ask_level.total_quantity}',
+                f'{ask_exchanges}',
             )
-            
+
         return table
-    
+
     def group_by_price(self, side):
         print(self.name)
         return
-        return_side = list(map(lambda x: (x[0], x[1].total_quantity, set(x[1].quantities.keys())), side.items()))
+        return_side = list(
+            map(
+                lambda x: (
+                    x[0],
+                    x[1].total_quantity,
+                    set(x[1].quantities.keys()),
+                ),
+                side.items(),
+            )
+        )
         print(return_side)
-        grouped_side = map(lambda x: (x[0], list(x[1])),groupby(return_side, lambda x: int(x[0])))
-        return_side = map(lambda x: (x[0], sum(qty for _, qty, _ in x[1]), " ".join(reduce(lambda x, y: x | y, (ex for *_, ex in x[1])))), grouped_side)
+        grouped_side = map(
+            lambda x: (x[0], list(x[1])),
+            groupby(return_side, lambda x: int(x[0])),
+        )
+        return_side = map(
+            lambda x: (
+                x[0],
+                sum(qty for _, qty, _ in x[1]),
+                ' '.join(reduce(lambda x, y: x | y, (ex for *_, ex in x[1]))),
+            ),
+            grouped_side,
+        )
         print(list(return_side))
-        #return return_side
+        # return return_side
 
     def _generate_collapsed_table(self) -> Table:
         table = Table()
-        columns = ["Price", "Quantity", "Exchange"]
+        columns = ['Price', 'Quantity', 'Exchange']
         for col in columns * 2:
             table.add_column(col)
 
         asks = list(self.group_by_price(self.asks))
         bids = reversed(list(self.group_by_price(self.bids)))
-        
-        
-        for ((bid_price, bid_quantity, bid_exchanges), (ask_price, ask_quantity, ask_exchanges)) in zip(bids, asks):
+
+        for (
+            (bid_price, bid_quantity, bid_exchanges),
+            (ask_price, ask_quantity, ask_exchanges),
+        ) in zip(bids, asks):
             table.add_row(
-            f"[green]{bid_price}", f"[green]{bid_quantity}",f"{bid_exchanges}",
-            f"[red]{ask_price}",f"[red]{ask_quantity}", f"{ask_exchanges}"
+                f'[green]{bid_price}',
+                f'[green]{bid_quantity}',
+                f'{bid_exchanges}',
+                f'[red]{ask_price}',
+                f'[red]{ask_quantity}',
+                f'{ask_exchanges}',
             )
         return table
 
 
 PriceUpdate: TypeAlias = tuple[float, float]
+
 
 @dataclass(frozen=True, slots=True)
 class OrderbookEvent:

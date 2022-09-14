@@ -1,6 +1,4 @@
-
-
-(PAIR1, PAIR2) = "ETH", "USDT"
+(PAIR1, PAIR2) = 'ETH', 'USDT'
 
 
 # BINANCE_ORDERBOOK_URL = f"https://api.binance.com/api/v3/depth?symbol={PAIR1}{PAIR2}&limit=1000"
