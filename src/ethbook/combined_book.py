@@ -11,7 +11,7 @@ import multiprocessing as mp
 from multiprocessing.heap import Heap
 
 class CombinedBook:
-    def __init__(self) -> CombinedBook:
+    def __init__(self) -> None:
         self.bids: SortedDict[float, LimitLevel] = SortedDict()
         self.asks: SortedDict[float, LimitLevel] = SortedDict()
         self.live = Live()
@@ -43,9 +43,9 @@ class CombinedBook:
         name: str,
     ) -> None:
         for price, quantity in updates:
-            try:
+            if price in side:
                 side[price].update_quantity(name, quantity)
-            except Exception:
+            else:
                 side[price] = LimitLevel.from_price_update(name, quantity)
             if -0.00000000001 < side[price].total_quantity < 0.00000000001:
                 side.pop(price)
@@ -57,12 +57,12 @@ class CombinedBook:
 
     def _generate_table(self) -> Table:
         table = Table()
-        columns = ['Price', 'Quantity', 'Exchange']
+        columns = ('Price', 'Quantity', 'Exchange')
         for col in columns * 2:
             table.add_column(col)
 
         for ((bid_price, bid_level), (ask_price, ask_level)) in zip(
-            reversed(self.bids.items()[:]), self.asks.items()[:]
+            reversed(self.bids.items()), self.asks.items()
         ):
             bid_exchanges = ''
             for exchange in bid_level.quantities.keys():

@@ -32,21 +32,21 @@ class FtxOrderBook(OrderBook):
         )
         ws.run_forever()
 
-    def process_orderbook_event(
-        self,
-        orderbook_data: list[list[str]],
-        side: SortedDict[float, LimitLevel],
-    ) -> None:
-        for price, quantity in orderbook_data:
-            price = float(price)
-            quantity = float(quantity)
-            try:
-                side[price].update_quantity(self._NAME, quantity)
-            except KeyError:
-                side[price] = LimitLevel()
-                side[price].update_quantity(self._NAME, quantity)
-            if -0.000000000001 < side[price].total_quantity < 0.000000000001:
-                side.pop(price)
+    # def process_orderbook_event(
+    #     self,
+    #     orderbook_data: list[list[str]],
+    #     side: SortedDict[float, LimitLevel],
+    # ) -> None:
+    #     for price, quantity in orderbook_data:
+    #         price = float(price)
+    #         quantity = float(quantity)
+    #         try:
+    #             side[price].update_quantity(self._NAME, quantity)
+    #         except KeyError:
+    #             side[price] = LimitLevel()
+    #             side[price].update_quantity(self._NAME, quantity)
+    #         if -0.000000000001 < side[price].total_quantity < 0.000000000001:
+    #             side.pop(price)
 
     def _process_message(self, message: dict[str, Any]) -> None:
         asks = [
@@ -70,7 +70,6 @@ class FtxOrderBook(OrderBook):
             # self.process_orderbook_event(message["data"]["bids"], self.bids)
             # self.process_orderbook_event(message["data"]["asks"], self.asks)
         elif message['type'] == 'subscribed':
-            print('subscribe to goodalexhunting')
             return
         else:
             return
@@ -78,7 +77,6 @@ class FtxOrderBook(OrderBook):
         # self.group_by_price(self.bids)
 
     def _on_open(self, ws) -> None:
-        print('opening connection')
         ws.send(
             json.dumps(
                 {
